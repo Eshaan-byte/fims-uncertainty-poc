@@ -1,0 +1,5 @@
+*.o
+*.so
+*.dll
+selective_adreport
+selective_adreport.cpp.R

@@ -1,34 +1,26 @@
 # run_poc.R
-# Testing selective ADREPORT gating with DATA_INTEGER flags in TMB.
-# This is the pattern I want to use for FIMS — see sdmTMB and WHAM
-# for real-world examples of this approach.
-#
-# Run: Rscript run_poc.R  (needs TMB installed)
+# Testing selective ADREPORT gating with DATA_INTEGER flags.
+# Run: Rscript run_poc.R
 
 library(TMB)
 
 compile("selective_adreport.cpp")
 dyn.load(dynlib("selective_adreport"))
 
-# simulate some data
 set.seed(123)
 n <- 500
 x <- seq(0, 10, length.out = n)
 y <- 2 + 1.5 * x + rnorm(n, sd = 1)
 
-# wrapper that takes a named list of which quantities should get SEs.
-# this mirrors what fit_fims(report_uncertainty = ...) would do.
 fit_model <- function(y, x, report_uncertainty = "all") {
   n <- length(y)
   qty_names <- c("predicted", "residuals", "total_predicted", "rmse")
 
-  # figure out which flags to set
   if (identical(report_uncertainty, "all")) {
     flags <- setNames(rep(1L, 4), qty_names)
   } else if (identical(report_uncertainty, "none")) {
     flags <- setNames(rep(0L, 4), qty_names)
   } else {
-    # start with everything off, then turn on what's requested
     flags <- setNames(rep(0L, 4), qty_names)
     for (nm in names(report_uncertainty)) {
       if (!nm %in% qty_names) stop("unknown quantity: ", nm)
@@ -61,7 +53,7 @@ fit_model <- function(y, x, report_uncertainty = "all") {
   )
 }
 
-# ---- run three configs and compare ----
+# --- three configs ---
 
 cat("Config 1: all SEs (current FIMS default)\n")
 r1 <- fit_model(y, x, "all")
@@ -75,11 +67,15 @@ cat("Config 3: no SEs (fast dev mode)\n")
 r3 <- fit_model(y, x, "none")
 cat(sprintf("  sdreport: %.4fs, %d ADREPORT values\n\n", r3$time, r3$n_adreport))
 
-# check that point estimates don't change when you toggle flags
+# --- the important check ---
 cat("Point estimates match across all configs?\n")
 cat(sprintf("  total_predicted: %s\n",
     all.equal(r1$report$total_predicted, r3$report$total_predicted)))
 cat(sprintf("  rmse: %s\n",
     all.equal(r1$report$rmse, r3$report$rmse)))
+
+# check predictions vector too
+cat(sprintf("  predictions[1:5]: %s\n",
+    all.equal(r1$report$predicted[1:5], r3$report$predicted[1:5])))
 
 dyn.unload(dynlib("selective_adreport"))

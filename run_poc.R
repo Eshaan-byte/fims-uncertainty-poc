@@ -54,4 +54,14 @@ cat("list_derived_quantities(): ", toString(list_derived_quantities()), "\n")
 cat("Flags after c('rmse'):      "); print(list_derived_quantities(r2$flags))
 cat("set_false('rmse') from all: "); print(list_derived_quantities(set_false(set_true(new_uncertainty_flags(), "all"), "rmse")))
 
+# --- Assertions (for CI) ---
+stopifnot(
+  isTRUE(all.equal(r1$report$total_predicted, r3$report$total_predicted)),
+  isTRUE(all.equal(r1$report$rmse, r3$report$rmse)),
+  r1$n_adreport == 1002, r2$n_adreport == 2,
+  r3$n_adreport == 0, r4$n_adreport == 501,
+  r1$time >= r3$time
+)
+cat("\n=== All assertions passed ===\n")
+
 dyn.unload(dynlib("selective_adreport"))

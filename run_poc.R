@@ -1,81 +1,57 @@
-# run_poc.R
-# Testing selective ADREPORT gating with DATA_INTEGER flags.
-# Run: Rscript run_poc.R
-
+# run_poc.R — Updated POC with character vector + S4 class + benchmarks
 library(TMB)
+source("uncertainty_flags.R")
 
 compile("selective_adreport.cpp")
 dyn.load(dynlib("selective_adreport"))
 
 set.seed(123)
-n <- 500
-x <- seq(0, 10, length.out = n)
+n <- 500; x <- seq(0, 10, length.out = n)
 y <- 2 + 1.5 * x + rnorm(n, sd = 1)
 
 fit_model <- function(y, x, report_uncertainty = "all") {
-  n <- length(y)
-  qty_names <- c("predicted", "residuals", "total_predicted", "rmse")
-
-  if (identical(report_uncertainty, "all")) {
-    flags <- setNames(rep(1L, 4), qty_names)
-  } else if (identical(report_uncertainty, "none")) {
-    flags <- setNames(rep(0L, 4), qty_names)
-  } else {
-    flags <- setNames(rep(0L, 4), qty_names)
-    for (nm in names(report_uncertainty)) {
-      if (!nm %in% qty_names) stop("unknown quantity: ", nm)
-      flags[nm] <- as.integer(report_uncertainty[[nm]])
-    }
-  }
-
-  dat <- list(
-    y = y, x = x, n = as.integer(n),
-    do_se_predicted       = flags["predicted"],
-    do_se_residuals       = flags["residuals"],
-    do_se_total_predicted = flags["total_predicted"],
-    do_se_rmse            = flags["rmse"]
-  )
-  pars <- list(a = 0, b = 0, log_sigma = 0)
-
-  obj <- MakeADFun(dat, pars, DLL = "selective_adreport", silent = TRUE)
+  flags <- parse_report_uncertainty(report_uncertainty)
+  dat <- c(list(y = y, x = x, n = as.integer(length(y))), flags_to_integers(flags))
+  obj <- MakeADFun(dat, list(a = 0, b = 0, log_sigma = 0),
+                   DLL = "selective_adreport", silent = TRUE)
   opt <- nlminb(obj$par, obj$fn, obj$gr)
-
   t0 <- proc.time()
   sdr <- sdreport(obj, getReportCovariance = FALSE)
   dt <- (proc.time() - t0)["elapsed"]
-
-  list(
-    opt = opt,
-    report = obj$report(),
-    sdr = summary(sdr, select = "report"),
-    time = dt,
-    n_adreport = nrow(summary(sdr, select = "report"))
-  )
+  sdr_sum <- summary(sdr, select = "report")
+  list(report = obj$report(), sdr = sdr_sum, time = dt,
+       memory_kb = as.numeric(object.size(sdr)) / 1024,
+       n_adreport = nrow(sdr_sum), flags = flags)
 }
 
-# --- three configs ---
-
-cat("Config 1: all SEs (current FIMS default)\n")
+# --- Three configs ---
 r1 <- fit_model(y, x, "all")
-cat(sprintf("  sdreport: %.4fs, %d ADREPORT values\n\n", r1$time, r1$n_adreport))
-
-cat("Config 2: SEs only for total_predicted and rmse\n")
-r2 <- fit_model(y, x, list(total_predicted = TRUE, rmse = TRUE))
-cat(sprintf("  sdreport: %.4fs, %d ADREPORT values\n\n", r2$time, r2$n_adreport))
-
-cat("Config 3: no SEs (fast dev mode)\n")
+r2 <- fit_model(y, x, c("total_predicted", "rmse"))
 r3 <- fit_model(y, x, "none")
-cat(sprintf("  sdreport: %.4fs, %d ADREPORT values\n\n", r3$time, r3$n_adreport))
 
-# --- the important check ---
-cat("Point estimates match across all configs?\n")
-cat(sprintf("  total_predicted: %s\n",
-    all.equal(r1$report$total_predicted, r3$report$total_predicted)))
-cat(sprintf("  rmse: %s\n",
-    all.equal(r1$report$rmse, r3$report$rmse)))
+# --- Regex demo ---
+r4 <- fit_model(y, x, "predict")  # matches predicted + total_predicted
 
-# check predictions vector too
-cat(sprintf("  predictions[1:5]: %s\n",
-    all.equal(r1$report$predicted[1:5], r3$report$predicted[1:5])))
+# --- Benchmarks ---
+cat("\n=== Benchmark Results ===\n")
+cat(sprintf("%-28s %8s %10s %8s\n", "Config", "Time(s)", "Mem(KB)", "Values"))
+for (r in list(
+  list("all", r1), list("c('total_predicted','rmse')", r2),
+  list("none", r3), list("regex: 'predict'", r4)
+)) cat(sprintf("%-28s %8.4f %10.1f %8d\n", r[[1]], r[[2]]$time, r[[2]]$memory_kb, r[[2]]$n_adreport))
+
+# --- Point estimate verification ---
+cat("\n=== Point Estimates Identical? ===\n")
+cat("  total_predicted:", all.equal(r1$report$total_predicted, r3$report$total_predicted), "\n")
+cat("  rmse:           ", all.equal(r1$report$rmse, r3$report$rmse), "\n")
+
+# --- Validation demo ---
+cat("\n=== Validation ===\n")
+cat("Misspelled name: ")
+tryCatch(parse_report_uncertainty("spawning_biomass"),
+         error = function(e) cat(e$message, "\n"))
+cat("list_derived_quantities(): ", toString(list_derived_quantities()), "\n")
+cat("Flags after c('rmse'):      "); print(list_derived_quantities(r2$flags))
+cat("set_false('rmse'):          "); print(list_derived_quantities(set_false(new_uncertainty_flags(), "rmse")))
 
 dyn.unload(dynlib("selective_adreport"))

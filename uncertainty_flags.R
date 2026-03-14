@@ -26,7 +26,7 @@ setMethod("set_false", "UncertaintyFlags", function(x, names) {
   if (identical(names, "all")) { for (s in slots) slot(x, s) <- FALSE; return(x) }
   bad <- setdiff(names, slots)
   if (length(bad)) stop("Unknown: '", bad[1], "'. Available: ", toString(slots))
-  for (s in slots) slot(x, s) <- !(s %in% names)
+  for (s in names) slot(x, s) <- FALSE
   x
 })
 

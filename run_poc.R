@@ -18,10 +18,10 @@ fit_model <- function(y, x, report_uncertainty = "all") {
   t0 <- proc.time()
   sdr <- sdreport(obj, getReportCovariance = FALSE)
   dt <- (proc.time() - t0)["elapsed"]
-  sdr_sum <- summary(sdr, select = "report")
+  sdr_sum <- tryCatch(summary(sdr, select = "report"), warning = function(w) NULL)
   list(report = obj$report(), sdr = sdr_sum, time = dt,
        memory_kb = as.numeric(object.size(sdr)) / 1024,
-       n_adreport = nrow(sdr_sum), flags = flags)
+       n_adreport = if (is.null(sdr_sum)) 0L else nrow(sdr_sum), flags = flags)
 }
 
 # --- Three configs ---
@@ -52,6 +52,6 @@ tryCatch(parse_report_uncertainty("spawning_biomass"),
          error = function(e) cat(e$message, "\n"))
 cat("list_derived_quantities(): ", toString(list_derived_quantities()), "\n")
 cat("Flags after c('rmse'):      "); print(list_derived_quantities(r2$flags))
-cat("set_false('rmse'):          "); print(list_derived_quantities(set_false(new_uncertainty_flags(), "rmse")))
+cat("set_false('rmse') from all: "); print(list_derived_quantities(set_false(set_true(new_uncertainty_flags(), "all"), "rmse")))
 
 dyn.unload(dynlib("selective_adreport"))

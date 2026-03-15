@@ -33,19 +33,21 @@ The character vector is parsed into an S4 `UncertaintyFlags` object that validat
 
 ```
 === Benchmark Results ===
-Config                           Time(s)    Mem(KB)   Values
-all                              0.0080      15.2     1002
-c('total_predicted','rmse')      0.0010       2.1        2
-none                             0.0003       1.0        0
-regex: 'predict'                 0.0012       8.5      501
+Config                        Time(s)    Mem(KB)   Values
+all                            0.0690       26.8     1002
+c('total_predicted','rmse')    0.0020        3.3        2
+none                           0.0010        3.0        0
+regex: 'predict'               0.0250       15.0      501
 
 === Point Estimates Identical? ===
   total_predicted: TRUE
   rmse:            TRUE
 
 === Validation ===
-Misspelled name: Unknown: 'spawning_biomass'. Available: predicted, residuals, total_predicted, rmse
+Misspelled name: No quantities matched. Available: predicted, residuals, total_predicted, rmse
 list_derived_quantities():  predicted, residuals, total_predicted, rmse
+
+=== All assertions passed ===
 ```
 
 *Note: Timing numbers are approximate and will vary by machine.*

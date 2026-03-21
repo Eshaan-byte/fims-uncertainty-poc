@@ -1,4 +1,4 @@
-# run_poc.R — Updated POC with character vector + S4 class + benchmarks
+# run the POC - compile model, test configs, benchmark
 library(TMB)
 source("uncertainty_flags.R")
 

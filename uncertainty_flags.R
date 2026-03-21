@@ -1,4 +1,4 @@
-# uncertainty_flags.R — S4 class prototype for per-quantity SE toggling
+# S4 class for per-quantity SE toggling
 
 setClass("UncertaintyFlags", slots = list(
   predicted = "logical", residuals = "logical",

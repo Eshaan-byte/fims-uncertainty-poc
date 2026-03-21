@@ -1,7 +1,6 @@
-// selective_adreport.cpp
-// Minimal TMB model testing conditional ADREPORT with DATA_INTEGER flags.
-// See: https://github.com/kaskr/adcomp/issues/174
-// Model: y ~ N(a + b*x, sigma^2)
+// Minimal TMB model to test conditional ADREPORT with DATA_INTEGER flags
+// ref: https://github.com/kaskr/adcomp/issues/174
+// y ~ N(a + b*x, sigma^2)
 
 #include <TMB.hpp>
 
